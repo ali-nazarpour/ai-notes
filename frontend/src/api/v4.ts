@@ -1,8 +1,12 @@
 /** Endpoints for workspaces, sharing, admin, documentation, blog, projects and AI tools. */
-import type { AuthResponse, Language, Note, NoteSummary, Task, TaskInput } from "../types";
+import type { AuthResponse, Language, Note, NoteSummary, Task, TaskInput, User } from "../types";
 import type {
   AdminStats,
   AdminUser,
+  AdminUserDetails,
+  AdminUserDirectory,
+  AdminWorkspaceDetails,
+  AdminWorkspaceDirectory,
   AskAnswer,
   DocPage,
   DocPageNode,
@@ -112,12 +116,42 @@ export const sharesApi = {
 };
 
 export const adminApi = {
+  login: (email: string, password: string) =>
+    request<AuthResponse>("/api/admin/auth/login", { ...json("POST", { email, password }), auth: false }),
+  session: (token: string) => request<User>("/api/admin/auth/me", { token }),
   stats: () => request<AdminStats>("/api/admin/stats"),
-  users: (search = "") =>
-    request<AdminUser[]>(`/api/admin/users${search ? `?search=${encodeURIComponent(search)}` : ""}`),
-  updateUser: (id: number, changes: { is_admin?: boolean; is_active?: boolean }) =>
-    request<void>(`/api/admin/users/${id}`, json("PATCH", changes)),
+  users: (params: URLSearchParams) => request<AdminUserDirectory>(`/api/admin/users/directory?${params}`),
+  user: (id: number) => request<AdminUserDetails>(`/api/admin/users/${id}`),
+  createUser: (body: {
+    email: string;
+    password: string;
+    display_name: string;
+    language: Language;
+    is_admin: boolean;
+  }) => request<AdminUser>("/api/admin/users", json("POST", body)),
+  updateUser: (
+    id: number,
+    changes: {
+      is_admin?: boolean;
+      is_active?: boolean;
+      email?: string;
+      display_name?: string;
+      language?: Language;
+    },
+  ) => request<void>(`/api/admin/users/${id}`, json("PATCH", changes)),
+  revokeSessions: (id: number, sessionId?: number) =>
+    request<void>(`/api/admin/users/${id}/sessions${sessionId === undefined ? "" : `/${sessionId}`}`, {
+      method: "DELETE",
+    }),
   removeUser: (id: number) => request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
+  workspaces: (params: URLSearchParams) =>
+    request<AdminWorkspaceDirectory>(`/api/admin/workspaces?${params}`),
+  workspace: (id: number) => request<AdminWorkspaceDetails>(`/api/admin/workspaces/${id}`),
+  createWorkspace: (body: { name: string; description: string; icon: string; owner_email: string }) =>
+    request<AdminWorkspaceDetails>("/api/admin/workspaces", json("POST", body)),
+  updateWorkspace: (id: number, body: WorkspaceChanges) =>
+    request<AdminWorkspaceDetails>(`/api/admin/workspaces/${id}`, json("PATCH", body)),
+  removeWorkspace: (id: number) => request<void>(`/api/admin/workspaces/${id}`, { method: "DELETE" }),
   resetLink: (id: number) =>
     request<{ link: string; email_status: "sent" | "failed" | "skipped" }>(
       `/api/admin/users/${id}/reset-link`,

@@ -43,7 +43,6 @@ export const SEARCH_SCOPES: { pattern: RegExp; label: string }[] = [
   { pattern: /^\/drive(\/.*)?$/, label: "nav.drive" },
   { pattern: /^\/slides$/, label: "nav.slides" },
   { pattern: /^\/learn(\/decks\/\d+)?$/, label: "nav.learn" },
-  { pattern: /^\/admin(\/users)?$/, label: "nav.admin" },
   { pattern: /^\/trash$/, label: "nav.trash" },
   { pattern: /^\/shared$/, label: "nav.shared" },
   { pattern: /^\/alarms$/, label: "nav.alarms" },

@@ -125,6 +125,7 @@ docker compose up --build -d
 ```
 
 Open http://ai-notes.localhost and create an account. Migrations run automatically on start.
+Sign in to the [standalone admin panel](http://admin.localhost/) with an administrator account.
 All ports are bound to `127.0.0.1`; nothing is exposed to the network.
 
 Open [pgAdmin](http://localhost:5050) with `PGADMIN_DEFAULT_EMAIL` and

@@ -108,27 +108,23 @@ def register_user(
 
     has_admin = db.scalar(select(User.id).where(User.is_admin.is_(True)).limit(1)) is not None
     admin_emails = settings.admin_email_list if settings is not None else []
-    user = User(
-        email=email,
-        display_name=display_name,
-        password_hash=hash_password(password),
-        language=language,
-        is_admin=not has_admin or email in admin_emails,
-    )
-    db.add(user)
-    db.flush()
-    workspace = workspaces_service.create_personal(db, user)
-
-    if is_first_user:
-        # Notes created before accounts existed belong to the first account.
-        db.execute(
-            update(Note)
-            .where(Note.user_id.is_(None))
-            .values(user_id=user.id, workspace_id=workspace.id, updated_at=Note.updated_at)
-        )
-
-    token = _issue_token(db, user, user_agent)
     try:
+        user, workspace = _new_user(
+            db,
+            email,
+            password,
+            display_name,
+            language,
+            is_admin=not has_admin or email in admin_emails,
+        )
+        if is_first_user:
+            # Notes created before accounts existed belong to the first account.
+            db.execute(
+                update(Note)
+                .where(Note.user_id.is_(None))
+                .values(user_id=user.id, workspace_id=workspace.id, updated_at=Note.updated_at)
+            )
+        token = _issue_token(db, user, user_agent)
         db.commit()
     except IntegrityError as exc:  # a concurrent sign-up with the same email won
         db.rollback()
@@ -137,12 +133,47 @@ def register_user(
     return user, token
 
 
-def login(db: Session, email: str, password: str, user_agent: str = "") -> tuple[User, str]:
+def _new_user(
+    db: Session, email: str, password: str, display_name: str, language: str, *, is_admin: bool
+) -> tuple[User, Workspace]:
+    user = User(
+        email=email,
+        display_name=display_name,
+        password_hash=hash_password(password),
+        language=language,
+        is_admin=is_admin,
+    )
+    db.add(user)
+    db.flush()
+    return user, workspaces_service.create_personal(db, user)
+
+
+def provision_user(
+    db: Session, email: str, password: str, display_name: str, language: str, *, is_admin: bool
+) -> User:
+    """Create an administrator-provisioned account without issuing a login session."""
+    email = normalize_email(email)
+    if get_user_by_email(db, email) is not None:
+        raise _email_taken()
+    try:
+        user, _ = _new_user(db, email, password, display_name, language, is_admin=is_admin)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise _email_taken() from exc
+    return user
+
+
+def login(
+    db: Session, email: str, password: str, user_agent: str = "", *, admin_only: bool = False
+) -> tuple[User, str]:
     user = get_user_by_email(db, email)
     if user is None:
         verify_password(password, _DUMMY_HASH)  # same timing as a wrong password
     if user is None or not verify_password(password, user.password_hash):
         raise UnauthorizedError("Wrong email or password.", code="invalid_credentials")
+    if admin_only and not user.is_admin:
+        raise ForbiddenError("Only administrators can do this.", code="admin_only")
     if not user.is_active:
         raise ForbiddenError("This account has been disabled.", code="account_disabled")
     token = _issue_token(db, user, user_agent)

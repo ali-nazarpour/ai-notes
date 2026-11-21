@@ -53,6 +53,7 @@ import { useAccounts } from "../store/accounts";
 import { ThemeSwitch } from "../components/ui";
 import { useI18n, type TranslationKey } from "../i18n";
 import { categoryStyle } from "../lib/palette";
+import { ADMIN_URL } from "../lib/siteUrls";
 import type { Theme } from "../types";
 
 interface Page {
@@ -350,14 +351,10 @@ export function Sidebar({
           <span className="label">{t("nav.trash")}</span>
         </NavLink>
         {isAdmin && (
-          <NavLink
-            to="/admin"
-            className={({ isActive }) => (isActive ? "nav-item active" : "nav-item")}
-            title={t("nav.admin")}
-          >
+          <a href={ADMIN_URL} className="nav-item" title={t("nav.admin")}>
             <ShieldUserIcon />
             <span className="label">{t("nav.admin")}</span>
-          </NavLink>
+          </a>
         )}
         <NavLink
           to="/settings"
@@ -407,22 +404,14 @@ export function BottomNav({ onQuickAdd }: { onQuickAdd: () => void }) {
   // Pages with their own input at the bottom (chat, editor, boards) hide the button.
   const isAdmin = useAccounts().active?.user.is_admin ?? false;
   const [ordered] = usePageOrder(useAccounts().active?.user.id ?? 0);
-  const showFab = ![
-    "/chat",
-    "/notes/",
-    "/boards/",
-    "/passwords",
-    "/docs/",
-    "/blog/",
-    "/projects/",
-    "/admin",
-  ].some((prefix) => pathname.startsWith(prefix));
+  const showFab = !["/chat", "/notes/", "/boards/", "/passwords", "/docs/", "/blog/", "/projects/"].some(
+    (prefix) => pathname.startsWith(prefix),
+  );
   const barPages = PAGES.filter((page) => PHONE_BAR.includes(page.to));
   const morePages: Page[] = [
     ...ordered.filter((page) => !PHONE_BAR.includes(page.to) && page.to !== "/chat"),
     { to: "/shared", label: "nav.shared" as TranslationKey, icon: ShareIcon },
     { to: "/trash", label: "nav.trash" as TranslationKey, icon: TrashIcon },
-    ...(isAdmin ? [{ to: "/admin", label: "nav.admin" as TranslationKey, icon: ShieldUserIcon }] : []),
     { to: "/settings", label: "nav.settings", icon: SettingsIcon },
     // The chatbot stays last here too.
     { to: "/chat", label: "nav.ask", icon: BotIcon },
@@ -480,6 +469,14 @@ export function BottomNav({ onQuickAdd }: { onQuickAdd: () => void }) {
                   <span>{t(label)}</span>
                 </NavLink>
               ))}
+              {isAdmin && (
+                <a href={ADMIN_URL} className="more-item">
+                  <span className="more-icon">
+                    <ShieldUserIcon />
+                  </span>
+                  <span>{t("nav.admin")}</span>
+                </a>
+              )}
             </div>
           </div>
         </div>

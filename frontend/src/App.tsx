@@ -25,8 +25,9 @@ import { WorkspaceProvider } from "./features/workspace/WorkspaceContext";
 import { useAppearance } from "./hooks/useAppearance";
 import { useFontScale } from "./hooks/useFontScale";
 import { useLocalStorage } from "./hooks/useLocalStorage";
-import { I18nProvider, initialLanguage } from "./i18n";
+import { I18nProvider, initialLanguage, useI18n } from "./i18n";
 import { AppShell } from "./layout/AppShell";
+import { ADMIN_URL } from "./lib/siteUrls";
 import { UpdatePrompt } from "./pwa/pwa";
 import { accountStore, useAccounts } from "./store/accounts";
 import { useSelectedWorkspace, useWorkspaceLook } from "./store/workspace";
@@ -49,7 +50,6 @@ const PostEditorPage = page(() => import("./features/blog/PostEditorPage").then(
 const ProjectsPage = page(() => import("./features/projects/ProjectsPage").then((m) => m.ProjectsPage));
 const ProjectPage = page(() => import("./features/projects/ProjectPage").then((m) => m.ProjectPage));
 const SharedPage = page(() => import("./features/workspace/SharedPage").then((m) => m.SharedPage));
-const AdminPage = page(() => import("./features/admin/AdminPage").then((m) => m.AdminPage));
 const PublicBlogPage = page(() => import("./features/blog/PublicBlogPage").then((m) => m.PublicBlogPage));
 const ResetPasswordPage = page(() =>
   import("./features/auth/ResetPasswordPage").then((m) => m.ResetPasswordPage),
@@ -138,7 +138,6 @@ function WorkspaceRoutes({ user, onAddAccount }: { user: User; onAddAccount: () 
             <Route path="learn/songs/:id" element={lazyPage(<SongPage />)} />
             <Route path="chat/:chatId?" element={lazyPage(<ChatPage />)} />
             <Route path="ask/:chatId?" element={<AskRedirect />} />
-            <Route path="admin/:section?" element={lazyPage(<AdminPage user={user} />)} />
             <Route
               path="settings/:section?"
               element={<SettingsPage user={user} onAddAccount={onAddAccount} />}
@@ -168,6 +167,13 @@ interface GateProps {
   toggleTheme: () => void;
 }
 
+// Old service workers can still serve the application shell for an admin link.
+function AdminRedirect({ target }: { target: string }) {
+  const { t } = useI18n();
+  useEffect(() => window.location.replace(target), [target]);
+  return <a href={target}>{t("nav.admin")}</a>;
+}
+
 function AppRoutes({
   accounts,
   active,
@@ -180,6 +186,13 @@ function AppRoutes({
   const location = useLocation();
   const navigate = useNavigate();
   const publicClient = useMemo(() => createQueryClient(), []);
+  if (/^\/admin(?:\/|$)/.test(location.pathname)) {
+    return (
+      <AdminRedirect
+        target={`${ADMIN_URL}${location.pathname.slice("/admin/".length)}${location.search}${location.hash}`}
+      />
+    );
+  }
   const publicPath =
     location.pathname.startsWith("/w/") ||
     location.pathname.startsWith("/d/") ||
@@ -194,9 +207,7 @@ function AppRoutes({
           <Route path="/d/:token" element={lazyPage(<PublicDrivePage />)} />
           <Route
             path="/invite/:token"
-            element={lazyPage(
-              <InvitePage accounts={accounts} active={active} onLanguageChange={setGuestLanguage} />,
-            )}
+            element={lazyPage(<InvitePage accounts={accounts} active={active} />)}
           />
         </Routes>
       </QueryClientProvider>
@@ -224,7 +235,6 @@ function AppRoutes({
           setAdding(false);
           if (authMode) void navigate("/", { replace: true });
         }}
-        onLanguageChange={setGuestLanguage}
       />
     );
   }

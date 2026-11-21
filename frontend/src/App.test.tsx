@@ -44,22 +44,21 @@ describe("landing page", () => {
     await user.click(within(screen.getByRole("main")).getAllByRole("link", { name: "ساخت حساب" })[0]!);
     expect(window.location.pathname).toBe("/register");
     expect(screen.getByLabelText("ایمیل")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(document.documentElement.dataset.theme).toBe("dark");
   });
 });
 
 describe("sign-in screen", () => {
-  it("switches to Persian with right-to-left layout", async () => {
+  it("uses the saved language with right-to-left layout", () => {
     mockServer({});
-    const user = userEvent.setup();
+    localStorage.setItem("notes.language", JSON.stringify("fa"));
     renderAt("/login");
-    expect(document.documentElement.dir).toBe("ltr");
-
-    await user.selectOptions(screen.getByRole("combobox", { name: "Language" }), "fa");
 
     expect(document.documentElement.lang).toBe("fa");
     expect(document.documentElement.dir).toBe("rtl");
     expect(screen.getByLabelText("ایمیل")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("signs in and opens the dashboard", async () => {

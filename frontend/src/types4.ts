@@ -1,7 +1,7 @@
 /** Shapes for workspaces, sharing, admin, documentation, blog, projects and AI tools. */
 import type { JSONContent } from "@tiptap/react";
 
-import type { ColorName, FontStyle, Role, Theme } from "./types";
+import type { ColorName, FontStyle, Role, Session, Theme } from "./types";
 
 // --- Workspaces ---
 
@@ -137,6 +137,46 @@ export interface AdminUser {
   workspaces: number;
   notes: number;
   storage_bytes: number;
+}
+
+export interface AdminUserDirectory {
+  items: AdminUser[];
+  total: number;
+  all_users: number;
+  admins: number;
+  disabled: number;
+}
+
+export interface AdminUserDetails extends AdminUser {
+  display_name: string;
+  sessions: Session[];
+  memberships: { id: number; name: string; role: Role }[];
+}
+
+export interface AdminWorkspace {
+  id: number;
+  name: string;
+  slug: string;
+  owner_id: number;
+  owner_name: string;
+  owner_email: string;
+  member_count: number;
+  created_at: string;
+}
+
+export interface AdminWorkspaceDetails extends AdminWorkspace {
+  description: string;
+  icon: string;
+  settings: WorkspaceSettings;
+  only_owned_workspace: boolean;
+}
+
+export interface AdminWorkspaceDirectory {
+  total: number;
+  all_workspaces: number;
+  solo: number;
+  team: number;
+  items: AdminWorkspace[];
 }
 
 export type SmtpSecurity = "starttls" | "ssl" | "none";

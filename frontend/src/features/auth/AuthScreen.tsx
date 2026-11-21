@@ -9,17 +9,16 @@ import {
   CalendarIcon,
   CheckCircleIcon,
   EyeIcon,
-  GlobeIcon,
   MailIcon,
   NotesIcon,
   SparkleIcon,
   UserPlusIcon,
 } from "../../components/Icons";
 import { Avatar, displayName } from "../../components/ui";
-import { LANGUAGES, useI18n } from "../../i18n";
+import { useI18n } from "../../i18n";
 import { errorMessage } from "../../i18n/errors";
 import { accountStore } from "../../store/accounts";
-import type { Language, SavedAccount } from "../../types";
+import type { SavedAccount } from "../../types";
 import type { PublicConfig } from "../../types4";
 
 type Mode = "login" | "register" | "forgot";
@@ -34,19 +33,11 @@ interface AuthScreenProps {
   accounts: SavedAccount[];
   onCancel?: () => void;
   onDone: () => void;
-  onLanguageChange: (language: Language) => void;
   invite?: InviteInfo;
   initialMode?: "login" | "register";
 }
 
-export function AuthScreen({
-  accounts,
-  onCancel,
-  onDone,
-  onLanguageChange,
-  invite,
-  initialMode,
-}: AuthScreenProps) {
+export function AuthScreen({ accounts, onCancel, onDone, invite, initialMode }: AuthScreenProps) {
   const i18n = useI18n();
   const { t, language } = i18n;
   const [selectedMode, setMode] = useState<Mode>(
@@ -118,33 +109,19 @@ export function AuthScreen({
       </section>
 
       <section className="auth-card" data-mode={mode}>
-        <div className="auth-top">
-          {onCancel ? (
-            <button type="button" className="ghost small" onClick={onCancel}>
-              <BackIcon /> {t("common.back")}
-            </button>
-          ) : initialMode ? (
-            <Link className="with-icon" to="/">
-              <BackIcon /> {t("app.name")}
-            </Link>
-          ) : (
-            <span />
-          )}
-          <label className="language-switch">
-            <GlobeIcon />
-            <select
-              aria-label={t("settings.section.language")}
-              value={language}
-              onChange={(event) => onLanguageChange(event.target.value as Language)}
-            >
-              {LANGUAGES.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        {(onCancel || initialMode) && (
+          <div className="auth-top">
+            {onCancel ? (
+              <button type="button" className="ghost small" onClick={onCancel}>
+                <BackIcon /> {t("common.back")}
+              </button>
+            ) : (
+              <Link className="with-icon" to="/">
+                <BackIcon /> {t("app.name")}
+              </Link>
+            )}
+          </div>
+        )}
         {invite && (
           <div className="auth-invite">
             <UserPlusIcon />

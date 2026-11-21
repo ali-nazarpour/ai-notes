@@ -4,78 +4,62 @@
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
-import { Navigate, NavLink, useParams } from "react-router";
+import { Link, Navigate, useParams } from "react-router";
 
 import { adminApi } from "../../api/v4";
-import { useConfirm, useToast } from "../../components/Feedback";
+import { useToast } from "../../components/Feedback";
 import {
   AlertIcon,
   BrainIcon,
   CheckCircleIcon,
-  CopyIcon,
   DatabaseIcon,
   DriveIcon,
   EyeIcon,
+  FolderIcon,
   type IconComponent,
-  InboxIcon,
   KeyIcon,
+  LinkIcon,
   MailIcon,
   SendIcon,
-  SettingsIcon,
-  ShieldUserIcon,
-  TrashIcon,
   UsersIcon,
 } from "../../components/Icons";
-import { EmptyState, PageHeader, Skeleton } from "../../components/ui";
-import { usePageQuery } from "../../hooks/usePageQuery";
-import { useI18n, type TranslationKey } from "../../i18n";
+import { PageHeader, Skeleton } from "../../components/ui";
+import { useI18n } from "../../i18n";
 import { errorMessage } from "../../i18n/errors";
 import { formatBytes } from "../../lib/embeds";
 import { driveApi } from "../../api/v5";
 import type { DriveSettings } from "../../types5";
 import type { User } from "../../types";
 import type { GeneralSettings, SmtpSecurity, SmtpSettings } from "../../types4";
-
-type Section = "overview" | "users" | "email" | "drive" | "general" | "log";
-
-const SECTIONS: { id: Section; label: TranslationKey; icon: IconComponent }[] = [
-  { id: "overview", label: "admin.overview", icon: DatabaseIcon },
-  { id: "users", label: "admin.users", icon: UsersIcon },
-  { id: "email", label: "admin.email", icon: MailIcon },
-  { id: "drive", label: "nav.drive", icon: DriveIcon },
-  { id: "general", label: "admin.general", icon: SettingsIcon },
-  { id: "log", label: "admin.log", icon: InboxIcon },
-];
+import { AdminLoadError, AdminUsers, AdminWorkspaces } from "./AdminDirectory";
+import { AdminEmailLog } from "./AdminEmailLog";
+import { getAdminSection } from "./adminSections";
 
 export function AdminPage({ user }: { user: User }) {
   const { t } = useI18n();
-  const { section = "overview" } = useParams();
+  const { section } = useParams();
   if (!user.is_admin) return <Navigate to="/" replace />;
-  const current = (SECTIONS.find((s) => s.id === section)?.id ?? "overview") as Section;
+  const { id: current, label, icon: SectionIcon } = getAdminSection(section);
 
   return (
     <div className="page admin-page">
-      <PageHeader
-        title={
-          <>
-            <ShieldUserIcon /> {t("nav.admin")}
-          </>
-        }
-        subtitle={t("admin.subtitle")}
-      />
-      <nav className="admin-tabs" aria-label={t("nav.admin")}>
-        {SECTIONS.map(({ id, label, icon: TabIcon }) => (
-          <NavLink key={id} to={`/admin/${id}`} className={current === id ? "admin-tab active" : "admin-tab"}>
-            <TabIcon /> {t(label)}
-          </NavLink>
-        ))}
-      </nav>
+      {current !== "users" && current !== "workspaces" && current !== "log" && (
+        <PageHeader
+          title={
+            <>
+              <SectionIcon /> {t(label)}
+            </>
+          }
+          subtitle={current === "overview" ? t("admin.subtitle") : undefined}
+        />
+      )}
       {current === "overview" && <Overview />}
-      {current === "users" && <Users me={user} />}
+      {current === "users" && <AdminUsers me={user} />}
+      {current === "workspaces" && <AdminWorkspaces ownerEmail={user.email} />}
       {current === "email" && <EmailSettings me={user} />}
       {current === "drive" && <DriveLimits />}
       {current === "general" && <General />}
-      {current === "log" && <EmailLog />}
+      {current === "log" && <AdminEmailLog />}
     </div>
   );
 }
@@ -104,7 +88,11 @@ function Stat({
 
 function Overview() {
   const { t, calendar } = useI18n();
-  const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: adminApi.stats });
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: adminApi.stats,
+  });
+  if (isError) return <AdminLoadError error={error} onRetry={() => void refetch()} />;
   if (isLoading || !data) return <Skeleton rows={4} />;
   const n = calendar.formatNumber;
   return (
@@ -135,6 +123,8 @@ function Overview() {
             ["nav.projects", data.projects],
             ["admin.stat.files", data.files],
             ["admin.stat.admins", data.admins],
+            ["admin.disabled", data.disabled],
+            ["nav.slides", data.decks ?? 0],
           ] as const
         ).map(([label, value]) => (
           <div key={label} className="mini-stat">
@@ -143,6 +133,21 @@ function Overview() {
           </div>
         ))}
       </div>
+      <nav className="admin-shortcuts" aria-label={t("admin.overviewShortcuts")}>
+        <Link to="/users?state=disabled" className="badge">
+          <UsersIcon /> {t("admin.disabled")} · {n(data.disabled)}
+        </Link>
+        <Link to="/workspaces" className="badge">
+          <FolderIcon /> {t("admin.stat.workspaces")}
+        </Link>
+        <Link to="/drive" className="badge">
+          <DriveIcon />{" "}
+          {t("admin.driveUsed", {
+            size: formatBytes(data.drive_bytes ?? 0, n),
+            files: n(data.drive_files ?? 0),
+          })}
+        </Link>
+      </nav>
       <div className="health-grid">
         <div className="card health-card" data-ok={data.email_enabled}>
           <MailIcon />
@@ -173,169 +178,14 @@ function Overview() {
   );
 }
 
-function Users({ me }: { me: User }) {
-  const i18n = useI18n();
-  const { t, calendar } = i18n;
-  const toast = useToast();
-  const confirm = useConfirm();
-  const client = useQueryClient();
-  const search = usePageQuery();
-  const [link, setLink] = useState<string | null>(null);
-  const { data: users = [], isLoading } = useQuery({
-    queryKey: ["admin-users", search],
-    queryFn: () => adminApi.users(search),
-  });
-
-  async function run(action: () => Promise<unknown>, done?: string) {
-    try {
-      await action();
-      if (done) toast(done, "success");
-      await client.invalidateQueries({ queryKey: ["admin-users"] });
-    } catch (err) {
-      toast(errorMessage(err, i18n), "error");
-    }
-  }
-
-  return (
-    <div className="stack">
-      {link && (
-        <div className="card link-card">
-          <KeyIcon />
-          <code dir="ltr">{link}</code>
-          <button
-            type="button"
-            className="ghost small"
-            onClick={() =>
-              void navigator.clipboard.writeText(link).then(() => toast(t("common.copied"), "success"))
-            }
-          >
-            <CopyIcon /> {t("common.copy")}
-          </button>
-        </div>
-      )}
-      {isLoading ? (
-        <Skeleton rows={4} />
-      ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>{t("admin.user")}</th>
-                <th>{t("admin.role")}</th>
-                <th className="hide-on-phone">{t("admin.lastActive")}</th>
-                <th className="hide-on-phone">{t("admin.usage")}</th>
-                <th aria-label={t("common.actions")} />
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((row) => (
-                <tr key={row.id} data-disabled={!row.is_active}>
-                  <td>
-                    <div className="user-cell">
-                      <span className="avatar avatar-sm" aria-hidden="true">
-                        {row.avatar ? <img src={row.avatar} alt="" /> : row.name.slice(0, 1).toUpperCase()}
-                      </span>
-                      <span>
-                        <strong>{row.name}</strong>
-                        <span className="muted small" dir="ltr">
-                          {row.email}
-                        </span>
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={row.is_admin ? "badge accent" : "badge"}>
-                      {row.is_admin ? t("admin.isAdmin") : t("admin.isUser")}
-                    </span>
-                    {!row.is_active && <span className="badge danger">{t("admin.disabled")}</span>}
-                  </td>
-                  <td className="hide-on-phone muted small">
-                    {row.last_active ? calendar.dateTime(row.last_active) : "—"}
-                  </td>
-                  <td className="hide-on-phone muted small">
-                    {t("admin.usageValue", {
-                      notes: row.notes,
-                      workspaces: row.workspaces,
-                      size: formatBytes(row.storage_bytes, calendar.formatNumber),
-                    })}
-                  </td>
-                  <td>
-                    {row.id !== me.id && (
-                      <div className="row-actions">
-                        <button
-                          type="button"
-                          className="ghost small"
-                          onClick={() =>
-                            void run(() => adminApi.updateUser(row.id, { is_admin: !row.is_admin }))
-                          }
-                        >
-                          {row.is_admin ? t("admin.removeAdmin") : t("admin.makeAdmin")}
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost small"
-                          onClick={() =>
-                            void run(() => adminApi.updateUser(row.id, { is_active: !row.is_active }))
-                          }
-                        >
-                          {row.is_active ? t("admin.disable") : t("admin.enable")}
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button small"
-                          title={t("admin.resetLink")}
-                          aria-label={t("admin.resetLink")}
-                          onClick={() =>
-                            void run(async () => {
-                              const result = await adminApi.resetLink(row.id);
-                              setLink(result.link);
-                              toast(
-                                result.email_status === "sent" ? t("admin.resetSent") : t("admin.resetCopy"),
-                                result.email_status === "failed" ? "error" : "success",
-                              );
-                            })
-                          }
-                        >
-                          <KeyIcon />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button small danger"
-                          title={t("admin.deleteUser")}
-                          aria-label={t("admin.deleteUser")}
-                          onClick={async () => {
-                            const ok = await confirm({
-                              title: t("admin.deleteUser"),
-                              message: t("admin.deleteUserMessage", { email: row.email }),
-                              confirmLabel: t("common.delete"),
-                              danger: true,
-                            });
-                            if (ok) await run(() => adminApi.removeUser(row.id), t("admin.userDeleted"));
-                          }}
-                        >
-                          <TrashIcon />
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const GMAIL: Partial<SmtpSettings> = { host: "smtp.gmail.com", port: 587, security: "starttls" };
 
 function EmailSettings({ me }: { me: User }) {
   const i18n = useI18n();
-  const { t } = i18n;
+  const { t, calendar } = i18n;
   const toast = useToast();
   const client = useQueryClient();
-  const { data } = useQuery({ queryKey: ["admin-email"], queryFn: adminApi.email });
+  const { data, isError, error, refetch } = useQuery({ queryKey: ["admin-email"], queryFn: adminApi.email });
   const [form, setForm] = useState<SmtpSettings | null>(null);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -346,6 +196,7 @@ function EmailSettings({ me }: { me: User }) {
   useEffect(() => {
     if (data && !form) setForm(data);
   }, [data, form]);
+  if (isError && !form) return <AdminLoadError error={error} onRetry={() => void refetch()} />;
   if (!form) return <Skeleton rows={5} />;
 
   const set = (patch: Partial<SmtpSettings>) => setForm({ ...form, ...patch });
@@ -498,40 +349,72 @@ function EmailSettings({ me }: { me: User }) {
         </div>
       </form>
 
-      <aside className="stack">
-        <div className="card stack">
-          <h3 className="section-title">
-            <SendIcon /> {t("admin.testTitle")}
-          </h3>
-          <input type="email" dir="ltr" value={testTo} onChange={(event) => setTestTo(event.target.value)} />
-          <button type="button" className="button" disabled={busy || !testTo} onClick={() => void test()}>
-            {t("admin.sendTest")}
+      <aside className="admin-email-side">
+        <form
+          className="card admin-email-card"
+          aria-labelledby="admin-test-email-title"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!busy) void test();
+          }}
+        >
+          <div className="admin-email-card-heading">
+            <span className="admin-email-card-icon">
+              <SendIcon />
+            </span>
+            <h3 id="admin-test-email-title">{t("admin.testTitle")}</h3>
+          </div>
+          <label className="admin-test-recipient">
+            <span>{t("admin.testRecipient")}</span>
+            <input
+              type="email"
+              autoComplete="email"
+              required
+              dir="ltr"
+              value={testTo}
+              onChange={(event) => setTestTo(event.target.value)}
+            />
+          </label>
+          <button type="submit" className="primary admin-email-test-action" disabled={busy || !testTo.trim()}>
+            <SendIcon /> {t("admin.sendTest")}
           </button>
           {result && (
-            <p className={result.status === "sent" ? "success-text" : "error-text"} role="status" dir="auto">
-              {result.status === "sent" ? t("admin.testSent") : result.error || t("admin.testSkipped")}
-            </p>
+            <div className="admin-email-test-result" data-status={result.status} role="status">
+              {result.status === "sent" ? <CheckCircleIcon /> : <AlertIcon />}
+              <span dir="auto">
+                {result.status === "sent" ? t("admin.testSent") : result.error || t("admin.testSkipped")}
+              </span>
+            </div>
           )}
-        </div>
-        <div className="card gmail-help">
-          <h3 className="section-title">
-            <AlertIcon /> {t("admin.gmailHelpTitle")}
-          </h3>
-          <ol>
-            <li>{t("admin.gmailStep1")}</li>
-            <li>{t("admin.gmailStep2")}</li>
-            <li>{t("admin.gmailStep3")}</li>
-            <li>{t("admin.gmailStep4")}</li>
+        </form>
+        <section className="card admin-email-card admin-gmail-help" aria-labelledby="admin-gmail-help-title">
+          <div className="admin-email-card-heading">
+            <span className="admin-email-card-icon">
+              <KeyIcon />
+            </span>
+            <h3 id="admin-gmail-help-title">{t("admin.gmailHelpTitle")}</h3>
+          </div>
+          <ol className="admin-gmail-steps" role="list">
+            {(["admin.gmailStep1", "admin.gmailStep2", "admin.gmailStep3", "admin.gmailStep4"] as const).map(
+              (step, index) => (
+                <li key={step}>
+                  <span className="admin-gmail-step-number" aria-hidden="true">
+                    {calendar.formatNumber(index + 1)}
+                  </span>
+                  <span>{t(step)}</span>
+                </li>
+              ),
+            )}
           </ol>
           <a
             href="https://myaccount.google.com/apppasswords"
             target="_blank"
             rel="noopener noreferrer"
-            className="button small"
+            className="button small admin-gmail-link"
           >
-            myaccount.google.com/apppasswords
+            <LinkIcon /> {t("admin.gmailOpenPasswords")}
           </a>
-        </div>
+        </section>
       </aside>
     </div>
   );
@@ -541,11 +424,15 @@ function General() {
   const i18n = useI18n();
   const { t } = i18n;
   const toast = useToast();
-  const { data } = useQuery({ queryKey: ["admin-general"], queryFn: adminApi.general });
+  const { data, isError, error, refetch } = useQuery({
+    queryKey: ["admin-general"],
+    queryFn: adminApi.general,
+  });
   const [form, setForm] = useState<GeneralSettings | null>(null);
   useEffect(() => {
     if (data && !form) setForm(data);
   }, [data, form]);
+  if (isError && !form) return <AdminLoadError error={error} onRetry={() => void refetch()} />;
   if (!form) return <Skeleton rows={3} />;
 
   async function save(event: FormEvent) {
@@ -560,7 +447,7 @@ function General() {
   }
 
   return (
-    <form className="card stack admin-general" onSubmit={save}>
+    <form className="card stack" onSubmit={save}>
       <label className="field">
         <span className="field-label">{t("admin.appName")}</span>
         <input
@@ -599,55 +486,14 @@ function General() {
   );
 }
 
-function EmailLog() {
-  const { t, calendar } = useI18n();
-  const { data = [], isLoading } = useQuery({ queryKey: ["admin-emails"], queryFn: adminApi.emails });
-  if (isLoading) return <Skeleton rows={4} />;
-  if (!data.length) return <EmptyState icon={InboxIcon} title={t("admin.logEmpty")} />;
-  return (
-    <div className="table-wrap">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>{t("admin.logWhen")}</th>
-            <th>{t("admin.logTo")}</th>
-            <th className="hide-on-phone">{t("admin.logSubject")}</th>
-            <th>{t("admin.logStatus")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row) => (
-            <tr key={row.id}>
-              <td className="small">{calendar.dateTime(row.created_at)}</td>
-              <td className="small" dir="ltr">
-                {row.to_email}
-              </td>
-              <td className="hide-on-phone small" dir="auto">
-                {row.subject}
-              </td>
-              <td>
-                <span className={`badge status-${row.status}`} title={row.error}>
-                  {t(`admin.status.${row.status}`)}
-                </span>
-                {row.error && (
-                  <span className="muted small log-error" dir="ltr">
-                    {row.error}
-                  </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function DriveLimits() {
   const i18n = useI18n();
   const { t, calendar } = i18n;
   const toast = useToast();
-  const { data } = useQuery({ queryKey: ["admin-drive"], queryFn: driveApi.settings });
+  const { data, isError, error, refetch } = useQuery({
+    queryKey: ["admin-drive"],
+    queryFn: driveApi.settings,
+  });
   const { data: stats } = useQuery({ queryKey: ["admin-stats"], queryFn: adminApi.stats });
   const [form, setForm] = useState<DriveSettings | null>(null);
   const [blocked, setBlocked] = useState("");
@@ -657,6 +503,7 @@ function DriveLimits() {
       setBlocked(data.blocked_extensions.join(", "));
     }
   }, [data, form]);
+  if (isError && !form) return <AdminLoadError error={error} onRetry={() => void refetch()} />;
   if (!form) return <Skeleton rows={3} />;
 
   async function save(event: FormEvent) {
@@ -677,7 +524,7 @@ function DriveLimits() {
 
   const presets = ["exe", "msi", "bat", "cmd", "scr", "js", "vbs", "ps1", "apk", "dmg"];
   return (
-    <form className="card stack admin-general" onSubmit={save}>
+    <form className="card stack" onSubmit={save}>
       <div className="admin-drive-head">
         <span className="info-card-icon">
           <DriveIcon />

@@ -61,8 +61,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        globIgnores: ["**/admin.html", "**/assets/admin-*.{js,css}"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/admin(?:\/|\.html|$)/],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
@@ -88,6 +89,7 @@ export default defineConfig({
     },
   },
   build: {
+    rolldownOptions: { input: { app: "index.html", admin: "admin.html" } },
     chunkSizeWarningLimit: 1200,
   },
   test: {

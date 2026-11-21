@@ -171,7 +171,11 @@ def read(db: Session, ctx: Ctx) -> WorkspaceRead:
 
 def update_workspace(db: Session, ctx: Ctx, changes: dict[str, Any]) -> Workspace:
     ctx.require_admin()
-    workspace = ctx.workspace
+    return save_workspace(db, ctx.workspace, changes)
+
+
+def save_workspace(db: Session, workspace: Workspace, changes: dict[str, Any]) -> Workspace:
+    """Apply validated changes after the caller has checked access."""
     if "settings" in changes:
         merged = dict(workspace.settings or {})
         merged.update(changes.pop("settings"))
@@ -186,12 +190,23 @@ def update_workspace(db: Session, ctx: Ctx, changes: dict[str, Any]) -> Workspac
 def delete_workspace(db: Session, ctx: Ctx) -> None:
     if ctx.role != "owner":
         raise ForbiddenError("Only the owner can delete a workspace.", code="workspace_owner_only")
+    remove_workspace(db, ctx.workspace)
+
+
+def remove_workspace(db: Session, workspace: Workspace, *, replace_last: bool = False) -> None:
+    """Remove a workspace after authorization, keeping an owned workspace available."""
+    owner = db.get(User, workspace.owner_id, with_for_update=True)
+    target = db.get(Workspace, workspace.id, with_for_update=True, populate_existing=True)
+    if owner is None or target is None:
+        raise _not_found()
     owned = db.scalar(
-        select(func.count()).select_from(Workspace).where(Workspace.owner_id == ctx.user_id)
+        select(func.count()).select_from(Workspace).where(Workspace.owner_id == owner.id)
     )
     if (owned or 0) <= 1:
-        raise InvalidInputError("You cannot delete your only workspace.", code="last_workspace")
-    db.delete(ctx.workspace)
+        if not replace_last:
+            raise InvalidInputError("You cannot delete your only workspace.", code="last_workspace")
+        create_personal(db, owner)
+    db.delete(target)
     db.commit()
 
 

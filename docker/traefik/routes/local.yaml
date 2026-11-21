@@ -4,6 +4,10 @@ http:
       entryPoints: [web]
       rule: Host(`ai-notes.localhost`)
       service: notes
+    admin-domain:
+      entryPoints: [web]
+      rule: Host(`admin.localhost`)
+      service: notes
     notes:
       entryPoints: [notes]
       rule: PathPrefix(`/`)

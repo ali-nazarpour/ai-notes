@@ -41,6 +41,7 @@ Traefik reads its entry points from `docker/traefik/traefik.yaml` and its routes
 | URL | Service |
 | --- | --- |
 | `http://ai-notes.localhost` | Default AI Notes address via Traefik and nginx |
+| `http://admin.localhost` | Standalone admin panel and administrator sign-in |
 | `http://localhost:5173` | Alternate AI Notes address |
 | `http://localhost:5050` | pgAdmin via Traefik |
 | `http://localhost:8080/dashboard/` | Traefik dashboard |

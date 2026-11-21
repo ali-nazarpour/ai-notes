@@ -14,18 +14,10 @@ import { useI18n } from "../../i18n";
 import { errorMessage } from "../../i18n/errors";
 import { accountStore } from "../../store/accounts";
 import { workspaceStore } from "../../store/workspace";
-import type { Language, SavedAccount } from "../../types";
+import type { SavedAccount } from "../../types";
 import { AuthScreen } from "./AuthScreen";
 
-export function InvitePage({
-  accounts,
-  active,
-  onLanguageChange,
-}: {
-  accounts: SavedAccount[];
-  active: SavedAccount | null;
-  onLanguageChange: (language: Language) => void;
-}) {
+export function InvitePage({ accounts, active }: { accounts: SavedAccount[]; active: SavedAccount | null }) {
   const { token = "" } = useParams();
   const i18n = useI18n();
   const { t } = i18n;
@@ -79,7 +71,6 @@ export function InvitePage({
           const signedIn = accountStore.getActive();
           if (signedIn) void accept(signedIn);
         }}
-        onLanguageChange={onLanguageChange}
         invite={{ token, email: invite.email, workspaceName: invite.workspace_name }}
       />
     );
