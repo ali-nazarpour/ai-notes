@@ -1,0 +1,3 @@
+# Shell scripts run inside a Linux container and must have LF line endings.
+# Without this line, Git on Windows may turn them into CRLF and the container will not start.
+*.sh text eol=lf

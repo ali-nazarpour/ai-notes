@@ -1,0 +1,178 @@
+# Local stack: Traefik + nginx/React + FastAPI + PostgreSQL + pgAdmin + MinIO + Ollama.
+# Only Docker is needed: Ollama runs in its own container, nothing to install on the host.
+#
+#   docker compose up --build -d
+#
+# Every published port is bound to 127.0.0.1, so nothing is reachable from the network.
+name: ai-notes-assistant
+
+services:
+  traefik:
+    image: traefik:v3.7
+    ports:
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:5173:5173"
+      - "127.0.0.1:5050:5050"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./docker/traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./docker/traefik/routes:/etc/traefik/routes:ro
+    depends_on:
+      frontend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env first}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env first}
+      POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  pgadmin:
+    image: ghcr.io/pgadmin-org/pgadmin4:9.19
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin@ai-notes.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?Set PGADMIN_DEFAULT_PASSWORD in .env}
+      PGADMIN_DISABLE_POSTFIX: "1"
+      PGADMIN_LISTEN_ADDRESS: 0.0.0.0
+    configs:
+      - source: pgadmin_servers
+        target: /pgadmin4/servers.json
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/misc/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  minio:
+    # S3-compatible storage for uploaded images and videos. The official image is no
+    # longer published on Docker Hub; Chainguard's build is maintained and minimal.
+    image: cgr.dev/chainguard/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-notes-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio-local-only}
+    volumes:
+      - minio_data:/data
+    # No published ports: only the backend talks to MinIO. To open the admin console
+    # locally, add:  ports: ["127.0.0.1:9101:9001"]  and visit http://localhost:9101
+    restart: unless-stopped
+
+  ollama:
+    # Same version as the Ollama desktop app, so the model files are read the same way.
+    image: ollama/ollama:0.40.16
+    pull_policy: missing
+    environment:
+      # Keep the model in memory between requests (loading it takes a while on a CPU).
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+    volumes:
+      # Models live on the host, so they survive rebuilds and are never downloaded twice.
+      # Default: the folder the Ollama desktop app uses, so models you already pulled are
+      # found without downloading again. Set OLLAMA_MODELS_DIR to use another folder.
+      - ${OLLAMA_MODELS_DIR:-~/.ollama/models}:/root/.ollama/models
+    # No published ports: only the backend talks to Ollama. To use it from the host, add
+    #   ports: ["127.0.0.1:11435:11434"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://ai-notes.localhost,http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Links in emails (invites, password resets). Can also be changed in the admin panel.
+      APP_URL: ${APP_URL:-http://ai-notes.localhost}
+      # Encrypts stored secrets such as the SMTP password. Set your own long random value.
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      # The Ollama container above (OLLAMA_BASE_URL in .env is not used any more).
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:?Set OLLAMA_MODEL in .env (see `ollama list`)}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-300}
+      OLLAMA_TEMPERATURE: ${OLLAMA_TEMPERATURE:-0.1}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      AI_CONTEXT_CHAR_BUDGET: ${AI_CONTEXT_CHAR_BUDGET:-12000}
+      AI_MAX_QUESTION_CHARS: ${AI_MAX_QUESTION_CHARS:-2000}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-notes-minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-local-only}
+      MINIO_BUCKET: ${MINIO_BUCKET:-notes-files}
+      MINIO_SECURE: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+configs:
+  pgadmin_servers:
+    content: |
+      {
+        "Servers": {
+          "1": {
+            "Name": "AI Notes PostgreSQL",
+            "Group": "Servers",
+            "Host": "db",
+            "Port": 5432,
+            "MaintenanceDB": "${POSTGRES_DB}",
+            "Username": "${POSTGRES_USER}",
+            "ConnectionParameters": { "sslmode": "prefer" }
+          }
+        }
+      }
+
+volumes:
+  postgres_data:
+  minio_data:
+  pgadmin_data:

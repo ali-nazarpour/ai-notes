@@ -1,0 +1,28 @@
+http:
+  routers:
+    notes-domain:
+      entryPoints: [web]
+      rule: Host(`ai-notes.localhost`)
+      service: notes
+    notes:
+      entryPoints: [notes]
+      rule: PathPrefix(`/`)
+      service: notes
+    pgadmin:
+      entryPoints: [pgadmin]
+      rule: PathPrefix(`/`)
+      service: pgadmin
+    dashboard:
+      entryPoints: [traefik]
+      rule: PathPrefix(`/api`) || PathPrefix(`/dashboard`)
+      service: api@internal
+
+  services:
+    notes:
+      loadBalancer:
+        servers:
+          - url: http://frontend:80
+    pgadmin:
+      loadBalancer:
+        servers:
+          - url: http://pgadmin:80

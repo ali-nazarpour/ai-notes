@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#4f5bd5" />
+    <meta name="description" content="Notes, tasks and a private AI assistant that runs on your own computer." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AI Notes" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <title>AI Notes</title>
+    <!-- Runs before React: applies the saved language/direction, theme and accent so the
+         first paint is already correct (see src/i18n and src/hooks/useAppearance.ts). -->
+    <script>
+      try {
+        var root = document.documentElement;
+        var read = function (key) {
+          return JSON.parse(localStorage.getItem(key));
+        };
+        var language = read("notes.language");
+        if (language !== "en" && language !== "fa") {
+          language = /^fa\b/i.test(navigator.language || "") ? "fa" : "en";
+        }
+        root.lang = language;
+        root.dir = language === "fa" ? "rtl" : "ltr";
+        var theme = read("notes.theme");
+        if (theme === "light" || theme === "dark") root.dataset.theme = theme;
+        var accents = {
+          indigo: "#4f5bd5", blue: "#1f7ae0", teal: "#0f9d8f", green: "#2f9e5a",
+          amber: "#d99400", orange: "#ea6a1f", red: "#e0453f", pink: "#d6417e",
+          violet: "#8b4fd1", slate: "#64748b"
+        };
+        var accent = accents[read("notes.accent")];
+        if (accent) root.style.setProperty("--accent-base", accent);
+        if (read("notes.accent") === "amber") root.style.setProperty("--accent-on", "#1f1600");
+        var scale = read("notes.fontScale");
+        if (typeof scale === "number" && scale !== 1) root.style.fontSize = scale * 100 + "%";
+      } catch (error) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

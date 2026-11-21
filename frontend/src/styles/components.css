@@ -1,0 +1,476 @@
+/* Cards, task rows, composer, date picker, empty/loading states. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-block-end: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block-end: 0.75rem;
+}
+
+.card-title {
+  margin-block-end: 0.3rem;
+}
+
+.card-title-sm {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-block-end: 0.5rem;
+}
+
+.empty-inline {
+  margin: 0.75rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.empty-icon .icon {
+  width: 28px;
+  height: 28px;
+}
+
+.error-text {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface));
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  margin: 0.75rem 0 0;
+  font-size: 0.88rem;
+}
+
+.spinner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--muted);
+  padding: 0.75rem 0;
+}
+
+.spinner-dot {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeleton-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+}
+
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-2),
+    color-mix(in srgb, var(--surface-2) 40%, var(--surface)),
+    var(--surface-2)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.favorite-button[aria-pressed="true"],
+.favorite-button[aria-pressed="true"]:hover:not(:disabled) {
+  color: var(--star);
+}
+
+.favorite-button[aria-pressed="true"] .icon {
+  animation: star-pop 0.35s cubic-bezier(0.34, 1.6, 0.5, 1);
+}
+
+@keyframes star-pop {
+  40% {
+    transform: scale(1.35) rotate(-12deg);
+  }
+}
+
+/* --- Task composer --- */
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.composer-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.25rem;
+  padding-inline: 0.6rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.composer-main:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.composer-plus {
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.composer-main input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.composer-main input:focus {
+  box-shadow: none;
+}
+
+.composer-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.composer-card {
+  padding: 0.75rem;
+}
+
+/* --- Tasks --- */
+.task-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.task {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.55rem 0.35rem;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s;
+}
+
+.task + .task {
+  border-block-start: 1px solid var(--border);
+}
+
+.task:hover {
+  background: var(--surface-2);
+}
+
+.check {
+  width: 24px;
+  min-height: 24px;
+  margin-block-start: 2px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 2px solid color-mix(in srgb, var(--cat) 70%, var(--border));
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+}
+
+.check .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.check:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--cat) 14%, transparent);
+  color: color-mix(in srgb, var(--cat) 70%, transparent);
+}
+
+.check[aria-checked="true"],
+.check[aria-checked="true"]:hover:not(:disabled) {
+  background: var(--cat);
+  border-color: var(--cat);
+  color: #fff;
+  animation: check-pop 0.3s cubic-bezier(0.34, 1.6, 0.5, 1);
+}
+
+@keyframes check-pop {
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.task-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0.1rem 0;
+  border: none;
+  background: transparent;
+  text-align: start;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.task-title:hover:not(:disabled) {
+  background: transparent;
+}
+
+.task-title:active:not(:disabled) {
+  transform: none;
+}
+
+.task[data-done="true"] .task-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-block-start: 0.3rem;
+}
+
+.date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.date-badge .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.date-badge.overdue {
+  color: var(--danger);
+}
+
+.task-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) {
+  .task-actions {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .task:hover .task-actions,
+  .task:focus-within .task-actions {
+    opacity: 1;
+  }
+}
+
+.task-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.task-group {
+  margin-block-end: 1.1rem;
+}
+
+.group-title,
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.3rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.task-group[data-tone="danger"] .group-title {
+  color: var(--danger);
+}
+
+.task-group[data-tone="accent"] .group-title {
+  color: var(--accent);
+}
+
+.group-toggle {
+  min-height: 34px;
+  padding: 0 0.25rem;
+  border: none;
+  background: transparent;
+}
+
+.group-toggle .icon {
+  transition: transform 0.2s;
+  transform: rotate(-90deg);
+}
+
+[dir="rtl"] .group-toggle .icon {
+  transform: rotate(90deg);
+}
+
+.group-toggle[aria-expanded="true"] .icon {
+  transform: none;
+}
+
+.group-count {
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+}
+
+.task-group .task-list {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* --- Date picker / mini month --- */
+.date-popover {
+  width: 290px;
+}
+
+.date-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-block-end: 0.6rem;
+}
+
+.month-grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-block-end: 0.35rem;
+}
+
+.month-grid-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+
+.month-grid-weekday {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0;
+}
+
+.mini-day {
+  position: relative;
+  min-height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.mini-day[data-outside="true"] {
+  opacity: 0.35;
+}
+
+.mini-day[data-today="true"] {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.mini-day[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.mini-day-mark {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+}

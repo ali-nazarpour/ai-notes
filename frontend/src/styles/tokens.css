@@ -1,0 +1,87 @@
+/*
+ * Design tokens. Every color is a variable; themes only change the values.
+ * The accent is set from JavaScript (--accent-base, --accent-on) and every accent shade
+ * is mixed from it, so one setting recolors the whole app in both themes.
+ */
+:root {
+  --accent-base: #4f5bd5;
+  --accent-on: #ffffff;
+
+  --bg: #f4f5f9;
+  --surface: #ffffff;
+  --surface-2: #f2f3f7;
+  --surface-3: #e9ebf1;
+  --border: #e1e4ec;
+  --text: #171c28;
+  --muted: #5f687a;
+  --danger: #d23b35;
+  --success: #2f9e5a;
+  --star: #e2a300;
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 6%);
+  --shadow: 0 1px 2px rgb(16 24 40 / 5%), 0 10px 28px rgb(16 24 40 / 9%);
+  --backdrop: rgb(15 20 30 / 45%);
+
+  --accent: var(--accent-base);
+  --accent-text: var(--accent-on);
+  --accent-soft: color-mix(in srgb, var(--accent) 11%, var(--surface));
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, black);
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --sidebar-width: 272px;
+  --sidebar-rail: 76px;
+  --topbar-height: 62px;
+  --bottom-nav-height: 64px;
+
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  color-scheme: light;
+}
+
+:root:lang(fa) {
+  --font: "Vazirmatn Variable", "Vazirmatn", Tahoma, system-ui, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1117;
+  --surface: #171b24;
+  --surface-2: #1f2430;
+  --surface-3: #282e3c;
+  --border: #2b3140;
+  --text: #e8ebf2;
+  --muted: #9aa3b5;
+  --danger: #f2837a;
+  --success: #5fd08b;
+  --star: #f5c451;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 32px rgb(0 0 0 / 38%);
+  --backdrop: rgb(0 0 0 / 60%);
+  --accent: color-mix(in srgb, var(--accent-base) 72%, white);
+  --accent-text: #0b0e16;
+  --accent-soft: color-mix(in srgb, var(--accent) 17%, var(--surface));
+  --accent-hover: color-mix(in srgb, var(--accent) 85%, white);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #0e1117;
+    --surface: #171b24;
+    --surface-2: #1f2430;
+    --surface-3: #282e3c;
+    --border: #2b3140;
+    --text: #e8ebf2;
+    --muted: #9aa3b5;
+    --danger: #f2837a;
+    --success: #5fd08b;
+    --star: #f5c451;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+    --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 32px rgb(0 0 0 / 38%);
+    --backdrop: rgb(0 0 0 / 60%);
+    --accent: color-mix(in srgb, var(--accent-base) 72%, white);
+    --accent-text: #0b0e16;
+    --accent-soft: color-mix(in srgb, var(--accent) 17%, var(--surface));
+    --accent-hover: color-mix(in srgb, var(--accent) 85%, white);
+    color-scheme: dark;
+  }
+}

@@ -1,0 +1,6 @@
+# Files that must not be sent to Docker (faster build and a cleaner image).
+node_modules
+dist
+.env
+.env.*
+*.log
