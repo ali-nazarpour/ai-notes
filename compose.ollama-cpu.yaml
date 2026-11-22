@@ -1,0 +1,8 @@
+# Linux/amd64 CPU fallback for environments that cannot pull ollama/ollama.
+services:
+  ollama:
+    platform: linux/amd64
+    image: ai-notes-ollama-cpu:0.40.16
+    build:
+      context: ./docker/ollama
+      dockerfile: Dockerfile.cpu

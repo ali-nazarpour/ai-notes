@@ -102,7 +102,13 @@ export const useChat = (id: number | null) =>
   });
 
 export const useAiStatus = () =>
-  useQuery({ queryKey: queryKeys.aiStatus, queryFn: aiApi.status, staleTime: 60_000, retry: 0 });
+  useQuery({
+    queryKey: queryKeys.aiStatus,
+    queryFn: aiApi.status,
+    staleTime: 60_000,
+    retry: 0,
+    refetchInterval: (query) => (query.state.data?.model_available ? false : 15_000),
+  });
 
 function useErrorToast() {
   const toast = useToast();

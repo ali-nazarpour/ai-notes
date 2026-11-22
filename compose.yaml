@@ -84,6 +84,7 @@ services:
     image: ollama/ollama:0.40.16
     pull_policy: missing
     environment:
+      OLLAMA_HOST: 0.0.0.0:11434
       # Keep the model in memory between requests (loading it takes a while on a CPU).
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
     volumes:

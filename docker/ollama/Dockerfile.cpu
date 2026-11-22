@@ -1,0 +1,24 @@
+FROM ghcr.io/homebrew/core/ollama:0.40.16@sha256:faab0e0a25d34e9bd3e313444412cec84bae2a881e2a8cee62817e745e48b4fc AS bottle
+
+FROM public.ecr.aws/docker/library/python:3.13-slim
+COPY --from=bottle /ollama/0.40.16/libexec/ /opt/ollama/
+COPY --from=bottle /ollama/0.40.16/LICENSE /opt/ollama/LICENSE
+
+# The Linux bottle carries a placeholder ELF interpreter path for Homebrew's installer.
+# Relocate it to the x86-64 glibc loader without changing the ELF section size.
+RUN python - <<'PY'
+from pathlib import Path
+
+root = Path("/opt/ollama")
+placeholder = b"@@HOMEBREW_PREFIX@@/lib/ld.so\0"
+loader = b"/lib64/ld-linux-x86-64.so.2\0".ljust(len(placeholder), b"\0")
+for binary in (root / "ollama", root / "lib/ollama/llama-server", root / "lib/ollama/llama-quantize"):
+    contents = binary.read_bytes()
+    if contents.count(placeholder) != 1:
+        raise ValueError(f"Unexpected interpreter in {binary}")
+    binary.write_bytes(contents.replace(placeholder, loader, 1))
+PY
+
+ENV PATH="/opt/ollama:${PATH}" OLLAMA_HOST="0.0.0.0:11434"
+ENTRYPOINT ["/opt/ollama/ollama"]
+CMD ["serve"]

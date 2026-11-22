@@ -80,6 +80,14 @@ docker compose exec ollama ollama pull qwen3.5:4b
 docker compose exec ollama ollama list
 ```
 
+For Docker running on x86-64, the CPU-only build is available when Docker Hub access
+blocks the official Ollama image. It uses the pinned Linux Homebrew package and the same
+model folder and internal URL. Start it with:
+
+```bash
+docker compose -f compose.yaml -f compose.ollama-cpu.yaml up --build -d
+```
+
 Without an NVIDIA GPU the model runs on the CPU (as the desktop app does on such machines).
 The first request after a start loads the model into memory, which takes about a minute;
 `OLLAMA_KEEP_ALIVE` (default 30 minutes) keeps it loaded. Give Docker Desktop at least
